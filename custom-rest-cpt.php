@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Custom REST CPT Endpoint
  * Description: Adds a custom post type and REST endpoint with root + fallback logic.
- * Version: 1.1
+ * Version: 1.2
  * Author: Cryptoball cryptoball7@gmail.com
  */
 
@@ -342,37 +342,3 @@ function crce_settings_page_html() {
     </div>
     <?php
 }
-
-/*
-TODO: make sure it works without this, then remove this whole block commented section
-// Register a setting
-
-function crce_register_settings() {
-    register_setting( 'general', 'crce_api_notice_message', array(
-        'type' => 'string',
-        'sanitize_callback' => 'sanitize_textarea_field',
-        'default' => ''
-    ));
-}
-add_action( 'admin_init', 'crce_register_settings' );
-
-// Add a field to General Settings
-
-function crce_add_settings_field() {
-    add_settings_field(
-        'crce_api_notice_message',
-        'API Source Notice',
-        'crce_settings_field_html',
-        'general'
-    );
-}
-add_action( 'admin_init', 'crce_add_settings_field' );
-
-function crce_settings_field_html() {
-    $value = get_option( 'crce_api_notice_message', crce_get_default_notice_message() );
-    echo '<textarea name="crce_api_notice_message" rows="10" class="large-text code">'
-        . esc_textarea( $value ) .
-        '</textarea>';
-    echo '<p class="description">Message shown in page source (HTML comment).</p>';
-}
-*/
