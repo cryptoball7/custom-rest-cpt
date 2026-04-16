@@ -35,6 +35,10 @@ class CRCE_Plugin {
         if ( get_option( 'crce_api_notice_message', null ) === null ) {
             add_option( 'crce_api_notice_message', $this->get_default_notice_message() );
         }
+
+if ( get_option( 'crce_enable_api_notice', null ) === null ) {
+    add_option( 'crce_enable_api_notice', 1 );
+}
     }
 
     /**
@@ -205,6 +209,10 @@ class CRCE_Plugin {
 
         if ( is_admin() ) return;
 
+    $enabled = get_option( 'crce_enable_api_notice', 1 );
+
+    if ( ! $enabled ) return;
+
         $message = get_option( 'crce_api_notice_message', $this->get_default_notice_message() );
 
         echo "\n<!--\n" . esc_html( $message ) . "\n-->\n";
@@ -229,6 +237,14 @@ class CRCE_Plugin {
      */
     public function register_settings() {
         register_setting( 'crce_settings_group', 'crce_api_notice_message' );
+
+    register_setting( 'crce_settings_group', 'crce_enable_api_notice', [
+        'type' => 'boolean',
+        'sanitize_callback' => function( $value ) {
+            return $value ? 1 : 0;
+        },
+        'default' => 1
+    ]);
     }
 
     /**
@@ -254,6 +270,19 @@ class CRCE_Plugin {
                 <p>
                     <button type="button" class="button" onclick="crceReset()">Reset to Default</button>
                 </p>
+
+<table class="form-table">
+    <tr>
+        <th scope="row">Enable API Source Notice</th>
+        <td>
+            <label>
+                <input type="checkbox" name="crce_enable_api_notice" value="1"
+                    <?php checked( get_option( 'crce_enable_api_notice', 1 ), 1 ); ?> />
+                Show API notice in HTML source
+            </label>
+        </td>
+    </tr>
+</table>
 
                 <?php submit_button(); ?>
             </form>
