@@ -20,6 +20,7 @@ class CRCE_Plugin {
         add_action( 'admin_init', [ $this, 'register_settings' ] );
 
         add_action( 'wp_head', [ $this, 'output_api_notice' ] );
+add_action( 'wp_head', [ $this, 'output_jsonld' ] );
 
         register_activation_hook( __FILE__, [ $this, 'activate' ] );
     }
@@ -38,6 +39,10 @@ class CRCE_Plugin {
 
 if ( get_option( 'crce_enable_api_notice', null ) === null ) {
     add_option( 'crce_enable_api_notice', 1 );
+}
+
+if ( get_option( 'crce_enable_jsonld', null ) === null ) {
+    add_option( 'crce_enable_jsonld', 1 );
 }
     }
 
@@ -218,6 +223,40 @@ if ( get_option( 'crce_enable_api_notice', null ) === null ) {
         echo "\n<!--\n" . esc_html( $message ) . "\n-->\n";
     }
 
+public function output_jsonld() {
+
+    if ( is_admin() ) return;
+
+    if ( ! get_option( 'crce_enable_jsonld', 1 ) ) return;
+
+    $base = get_rest_url( null, 'crce/v1/item' );
+
+    $data = [
+        '@context' => 'https://schema.org',
+        '@type' => 'WebAPI',
+        'name' => 'CRCE API',
+        'url' => $base,
+        'description' => 'Custom REST API for retrieving and replying to content items.',
+        'documentation' => $base,
+        'potentialAction' => [
+            [
+                '@type' => 'SearchAction',
+                'target' => $base . '/{slug}',
+                'query-input' => 'required name=slug'
+            ],
+            [
+                '@type' => 'CommunicateAction',
+                'target' => $base . '/{slug}/reply',
+                'httpMethod' => 'POST'
+            ]
+        ]
+    ];
+
+    echo "\n<script type=\"application/ld+json\">\n";
+    echo wp_json_encode( $data, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT );
+    echo "\n</script>\n";
+}
+
     /**
      * Admin Menu
      */
@@ -245,6 +284,11 @@ if ( get_option( 'crce_enable_api_notice', null ) === null ) {
         },
         'default' => 1
     ]);
+register_setting( 'crce_settings_group', 'crce_enable_jsonld', [
+    'type' => 'boolean',
+    'sanitize_callback' => function( $v ) { return $v ? 1 : 0; },
+    'default' => 1
+]);
     }
 
     /**
@@ -282,6 +326,16 @@ if ( get_option( 'crce_enable_api_notice', null ) === null ) {
             </label>
         </td>
     </tr>
+<tr>
+    <th scope="row">Enable JSON-LD API Discovery</th>
+    <td>
+        <label>
+            <input type="checkbox" name="crce_enable_jsonld" value="1"
+                <?php checked( get_option( 'crce_enable_jsonld', 1 ), 1 ); ?> />
+            Output structured data (<code>application/ld+json</code>)
+        </label>
+    </td>
+</tr>
 </table>
 
                 <?php submit_button(); ?>

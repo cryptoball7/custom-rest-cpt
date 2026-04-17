@@ -1,3 +1,9 @@
+2:25 PM 4/17/2026
+
+Add a /docs endpoint that explains the API
+Decide how to handle author name and email and other details and add those to the documentation
+Make sure documentation is consistent across all the ways it is served
+
 10:28 PM 4/14/2026
 
 Setup sync with WordPress-Plugins repo
