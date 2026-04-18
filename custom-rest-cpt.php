@@ -14,6 +14,9 @@ class CRCE_Plugin {
         add_action( 'init', [ $this, 'register_cpt' ] );
         add_action( 'init', [ $this, 'ensure_default_posts' ] );
 
+add_action( 'add_meta_boxes', [ $this, 'add_meta_box' ] );
+add_action( 'save_post', [ $this, 'save_meta_box' ] );
+
         add_action( 'rest_api_init', [ $this, 'register_routes' ] );
 
         add_action( 'admin_menu', [ $this, 'admin_menu' ] );
@@ -90,6 +93,51 @@ if ( get_option( 'crce_enable_jsonld', null ) === null ) {
         }
     }
 
+public function add_meta_box() {
+    add_meta_box(
+        'crce_replies_box',
+        'API Replies',
+        [ $this, 'render_meta_box' ],
+        'crce_item',
+        'side'
+    );
+}
+
+public function render_meta_box( $post ) {
+
+    $enabled = get_post_meta( $post->ID, 'crce_enable_replies', true );
+
+    // default ON if not set
+    if ( $enabled === '' ) $enabled = 1;
+
+    wp_nonce_field( 'crce_replies_nonce', 'crce_replies_nonce_field' );
+    ?>
+
+    <label>
+        <input type="checkbox" name="crce_enable_replies" value="1"
+            <?php checked( $enabled, 1 ); ?> />
+        Allow replies via API
+<p style="margin-top:8px; color:#666;">
+    When disabled, the API will reject POST requests to this item.
+</p>
+    </label>
+
+    <?php
+}
+
+public function save_meta_box( $post_id ) {
+
+    if ( ! isset( $_POST['crce_replies_nonce_field'] ) ) return;
+    if ( ! wp_verify_nonce( $_POST['crce_replies_nonce_field'], 'crce_replies_nonce' ) ) return;
+
+    if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) return;
+    if ( ! current_user_can( 'edit_post', $post_id ) ) return;
+
+    $value = isset( $_POST['crce_enable_replies'] ) ? 1 : 0;
+
+    update_post_meta( $post_id, 'crce_enable_replies', $value );
+}
+
     /**
      * REST Routes
      */
@@ -141,6 +189,17 @@ if ( get_option( 'crce_enable_jsonld', null ) === null ) {
             return new WP_REST_Response([ 'error' => 'Post not found' ], 404);
         }
 
+$enabled = get_post_meta( $post->ID, 'crce_enable_replies', true );
+
+// default ON
+if ( $enabled === '' ) $enabled = 1;
+
+if ( ! $enabled ) {
+    return new WP_REST_Response([
+        'error' => 'Replies are disabled for this item'
+    ], 403);
+}
+
         $params = $request->get_json_params();
 
         $content = sanitize_textarea_field( $params['content'] ?? '' );
@@ -184,12 +243,16 @@ if ( get_option( 'crce_enable_jsonld', null ) === null ) {
             ];
         }, $comments);
 
+$enabled = get_post_meta( $post->ID, 'crce_enable_replies', true );
+if ( $enabled === '' ) $enabled = 1;
+
         return [
             'id' => $post->ID,
             'slug' => $post->post_name,
             'title' => $post->post_title,
             'content' => $content,
-            'replies' => $replies
+            'replies' => $replies,
+            'replies_enabled' => (bool) $enabled,
         ];
     }
 
