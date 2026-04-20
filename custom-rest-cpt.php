@@ -182,6 +182,44 @@ public function save_meta_box( $post_id ) {
      */
     public function post_reply( $request ) {
 
+$ip = $this->get_user_ip();
+
+if ( $this->is_rate_limited( $ip ) ) {
+    return new WP_REST_Response([
+        'error' => 'Too many requests. Please slow down.'
+    ], 429);
+}
+
+$params = $request->get_json_params();
+
+// Honeypot check
+if ( ! empty( $params['website'] ) ) {
+    return new WP_REST_Response([
+        'error' => 'Spam detected'
+    ], 400);
+}
+
+if ( function_exists( 'akismet_http_post' ) ) {
+
+    $data = [
+        'blog' => get_site_url(),
+        'user_ip' => $this->get_user_ip(),
+        'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? '',
+        'comment_type' => 'comment',
+        'comment_author' => $params['author_name'] ?? '',
+        'comment_author_email' => $params['author_email'] ?? '',
+        'comment_content' => $params['content'] ?? ''
+    ];
+
+    $response = akismet_http_post( http_build_query( $data ), 'comment-check' );
+
+    if ( isset( $response[1] ) && trim( $response[1] ) === 'true' ) {
+        return new WP_REST_Response([
+            'error' => 'Spam detected (Akismet)'
+        ], 400);
+    }
+}
+
         $slug = sanitize_title( $request['slug'] );
         $post = get_page_by_path( $slug, OBJECT, 'crce_item' );
 
@@ -416,6 +454,34 @@ register_setting( 'crce_settings_group', 'crce_enable_jsonld', [
 
         <?php
     }
+
+// Rate Limiting
+private function is_rate_limited( $ip ) {
+
+    $key = 'crce_rate_' . md5( $ip );
+
+    $count = (int) get_transient( $key );
+
+    if ( $count >= 5 ) {
+        return true;
+    }
+
+    set_transient( $key, $count + 1, MINUTE_IN_SECONDS );
+
+    return false;
+}
+
+private function get_user_ip() {
+
+    foreach ( [ 'HTTP_CLIENT_IP', 'HTTP_X_FORWARDED_FOR', 'REMOTE_ADDR' ] as $key ) {
+        if ( ! empty( $_SERVER[ $key ] ) ) {
+            return sanitize_text_field( explode( ',', $_SERVER[ $key ] )[0] );
+        }
+    }
+
+    return '0.0.0.0';
+}
+
 }
 
 /**
