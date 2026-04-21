@@ -47,6 +47,10 @@ if ( get_option( 'crce_enable_api_notice', null ) === null ) {
 if ( get_option( 'crce_enable_jsonld', null ) === null ) {
     add_option( 'crce_enable_jsonld', 1 );
 }
+
+if ( get_option( 'crce_require_moderation', null ) === null ) {
+    add_option( 'crce_require_moderation', 0 );
+}
     }
 
     /**
@@ -246,18 +250,21 @@ if ( ! $enabled ) {
             return new WP_REST_Response([ 'error' => 'Content required' ], 400);
         }
 
+$moderation_enabled = get_option( 'crce_require_moderation', 0 );
+
         $comment_id = wp_insert_comment([
             'comment_post_ID' => $post->ID,
             'comment_content' => $content,
             'comment_author'  => sanitize_text_field( $params['author_name'] ?? '' ),
             'comment_author_email' => sanitize_email( $params['author_email'] ?? '' ),
-            'comment_approved' => 1,
+'comment_approved' => $moderation_enabled ? 0 : 1,
         ]);
 
-        return [
-            'success' => true,
-            'comment_id' => $comment_id
-        ];
+return [
+    'success' => true,
+    'comment_id' => $comment_id,
+    'status' => $moderation_enabled ? 'pending' : 'approved'
+];
     }
 
     /**
@@ -390,6 +397,12 @@ register_setting( 'crce_settings_group', 'crce_enable_jsonld', [
     'sanitize_callback' => function( $v ) { return $v ? 1 : 0; },
     'default' => 1
 ]);
+
+register_setting( 'crce_settings_group', 'crce_require_moderation', [
+    'type' => 'boolean',
+    'sanitize_callback' => function( $v ) { return $v ? 1 : 0; },
+    'default' => 0
+]);
     }
 
     /**
@@ -451,6 +464,21 @@ register_setting( 'crce_settings_group', 'crce_enable_jsonld', [
             }
         }
         </script>
+
+<tr>
+    <th scope="row">Require Reply Moderation</th>
+    <td>
+        <label>
+            <input type="checkbox" name="crce_require_moderation" value="1"
+                <?php checked( get_option( 'crce_require_moderation', 0 ), 1 ); ?> />
+            Hold replies for moderation before publishing
+        </label>
+        <p class="description">
+            If enabled, replies will not appear in the API until approved in WordPress comments.
+        </p>
+    </td>
+</tr>
+
 
         <?php
     }
