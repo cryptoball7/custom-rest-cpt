@@ -272,7 +272,15 @@ return [
      */
     private function format_post( $post ) {
 
-        $content = trim( wp_strip_all_tags( $post->post_content ) );
+$content = $post->post_content;
+
+// Process shortcodes first
+$content = do_shortcode( $content );
+
+// Then strip HTML
+$content = wp_strip_all_tags( $content );
+
+        $content = trim( $content );
 
         $comments = get_comments([
             'post_id' => $post->ID,
